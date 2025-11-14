@@ -1,16 +1,17 @@
 import os
 import requests
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
 # --- CONFIG ---
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 VOICEFLOW_API_KEY = os.getenv("VOICEFLOW_API_KEY")
-VERSION_ID = "development"  # ou "production"
 
 TELEGRAM_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 VOICEFLOW_URL = "https://general-runtime.voiceflow.com/state/user/{user_id}/interact"
+
+VERSION_ID = "development"  # ou production
 
 
 # =======================
@@ -19,6 +20,9 @@ VOICEFLOW_URL = "https://general-runtime.voiceflow.com/state/user/{user_id}/inte
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.json
+
+    if not data:
+        return jsonify({"status": "no data"}), 200
 
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
@@ -49,20 +53,28 @@ def webhook():
 
         # ---- 2. Extraire la réponse textuelle de Voiceflow ----
         response_text = ""
-        for item in output:
-            if item["type"] == "text":
-                response_text += item["payload"]["message"] + "\n"
+
+        # DM API 2024 format: { "trace": [ ... ] }
+        if isinstance(output, dict) and "trace" in output:
+            for trace in output["trace"]:
+                if trace.get("type") == "text":
+                    msg = trace["payload"].get("message", "")
+                    response_text += msg + "\n"
 
         response_text = response_text.strip()
+
+        # Si aucune réponse → fallback
+        if not response_text:
+            response_text = "Désolé, je n'ai pas compris 🐾"
 
         # ---- 3. Envoyer la réponse Telegram ----
         send_message(chat_id, response_text)
 
-    return "ok"
+    return "ok", 200
 
 
 # =======================
-#   TELEGRAM SEND
+#    TELEGRAM SEND
 # =======================
 def send_message(chat_id, text):
     url = f"{TELEGRAM_URL}/sendMessage"
@@ -74,7 +86,7 @@ def send_message(chat_id, text):
 
 
 # =======================
-#   MAIN LOCAL
+#    RUN LOCAL
 # =======================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
