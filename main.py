@@ -11,7 +11,7 @@ VOICEFLOW_API_KEY = os.getenv("VOICEFLOW_API_KEY")
 TELEGRAM_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 VOICEFLOW_URL = "https://general-runtime.voiceflow.com/state/user/{user_id}/interact"
 
-VERSION_ID = "development"  # ou production
+VERSION_ID = "production"  # maintenant on utilise production
 
 
 # =======================
@@ -65,7 +65,7 @@ def webhook():
 
         # Si aucune réponse → fallback
         if not response_text:
-            response_text = "Désolé, je n'ai pas compris 🐾"
+            response_text = "Désolé, je n'ai pas reçu de réponse de Voiceflow 🐾"
 
         # ---- 3. Envoyer la réponse Telegram ----
         send_message(chat_id, response_text)
